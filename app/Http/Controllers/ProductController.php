@@ -7,41 +7,59 @@ use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
-    // GET /api/products - Tüm ürünleri listele
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::getAllProducts();
-        return response()->json($products);
+        $validatedData = $request->validate([
+            'categoryId' => 'nullable|exists:categories,id',
+            'search' => 'nullable|string|max:255',
+            'minPrice' => 'nullable|numeric|min:0',
+            'maxPrice' => 'nullable|numeric|min:0',
+            'minStock' => 'nullable|integer|min:0',
+            'maxStock' => 'nullable|integer|min:0',
+            'sort' => 'nullable|string|in:price,stock',
+            'order' => 'nullable|string|in:asc,desc',
+            'page' => 'nullable|integer|min:1',
+            'size' => 'nullable|integer|min:1|max:1000',
+        ]);
+        $products = Product::getProducts($validatedData);
+        return response()->json(['status'=> 'success', 'message' => ''], 404);
     }
 
-    // GET /api/products/{id} - Tek bir ürünü getir
     public function show($id)
     {
         $product = Product::getProductById($id);
         if (!$product)
         {
-            return response()->json(['error' => 'Product not found'], 404);
+            return response()->json(['status'=> 'error', 'message' => 'Ürün bulunamadı.'], 404);
         }
         return response()->json($product);
     }
 
-    // POST /api/products - Yeni ürün oluştur (Admin only)
     public function store(Request $request)
     {
-        $this->authorize('admin');
+        if (!auth()->user()->is_admin) {
+            return response()->json(['status'=> 'error', 'message' => 'Yetkiniz bulunmamaktadır!'], 403);
+        }
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
+            'categoryId' => 'required|exists:categories,id',
         ]);
+        if (!Product::categoryExists($validatedData['categoryId']))
+        {
+            return response()->json(['status' => 'error', 'message' => 'Kategori bulunamadı!'], 404);
+        }
+
         $product = Product::createProduct($validatedData);
         return response()->json($product, 201);
     }
 
-    // PUT /api/products/{id} - Ürünü güncelle (Admin only)
     public function update(Request $request, $id)
     {
-        $this->authorize('admin');
+        if (!auth()->user()->is_admin) {
+            return response()->json(['status'=> 'error', 'message' => 'Yetkiniz bulunmamaktadır!'], 403);
+        }
         $product = Product::getProductById($id);
         if (!$product)
         {
@@ -51,21 +69,23 @@ class ProductController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'price' => 'sometimes|required|numeric|min:0',
             'stock' => 'sometimes|required|integer|min:0',
+            'categoryId' => 'sometimes|required|exists:categories,id',
         ]);
         $product->updateProduct($validatedData);
         return response()->json($product);
     }
 
-    // DELETE /api/products/{id} - Ürünü sil (Admin only)
     public function destroy($id)
     {
-        $this->authorize('admin');
+        if (!auth()->user()->is_admin) {
+            return response()->json(['status'=> 'error', 'message' => 'Yetkiniz bulunmamaktadır!'], 403);
+        }
         $product = Product::getProductById($id);
         if (!$product)
         {
-            return response()->json(['error' => 'Product not found'], 404);
+            return response()->json(['status'=>'error', 'message' => 'Ürün bulunamadı!'], 404);
         }
         $product->deleteProduct();
-        return response()->json(['message' => 'Product deleted successfully']);
+        return response()->json(['status'=>'success', 'message' => 'Ürün başarıyla silindi!']);
     }
 }

@@ -20,14 +20,14 @@ class Category extends Model
         return $this->hasMany(Category::class, 'parent_id');
     }
 
-    public function createCategory($data)
+    public static function createCategory($data)
     {
-        return $this->create($data);
+        return self::create($data);
     }
 
-    public function updateCategory($data)
+    public static function updateCategory($data)
     {
-        return $this->update($data);
+        return self::find($data['id'])->update($data);
     }
 
     public function deleteCategory()
@@ -66,5 +66,10 @@ class Category extends Model
                 return $this->buildCategoryTree($subCategory);
             });
         return $category;
+    }
+
+    public static function categoryExists($name, $parentId)
+    {
+        return self::where('name', $name)->where('parent_id', $parentId)->exists();
     }
 }
