@@ -13,4 +13,3 @@ Bu proje, PHP 8.0+ ve Laravel framework'ü kullanılarak geliştirilmiştir. API
 - PHP 8.0+
 - Composer
 - MySQL veya PostgreSQL
-- Docker (isteğe bağlı)
