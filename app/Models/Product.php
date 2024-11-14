@@ -24,8 +24,8 @@ class Product extends Model
     public static function getProducts($filters)
     {
         $query = self::query();
-        if (!empty($filters['categoryId'])) {
-            $query->where('category_id', $filters['categoryId']);
+        if (!empty($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
         }
         if (!empty($filters['search'])) {
             $query->where('name', 'like', '%' . $filters['search'] . '%');
@@ -42,7 +42,7 @@ class Product extends Model
         if (isset($filters['maxStock'])) {
             $query->where('stock', '<=', $filters['maxStock']);
         }
-        if (!empty($filters['sort']) && in_array($filters['sort'], ['price', 'stock'])) {
+        if (!empty($filters['sort']) && in_array($filters['sort'], ['price', 'stock', 'id', 'created_at', 'updated_at'])) {
             $query->orderBy($filters['sort'], $filters['order'] ?? 'asc');
         }
         $page = $filters['page'] ?? 1;
@@ -51,12 +51,12 @@ class Product extends Model
         return [
             'status' => 'success',
             'message' => '',
-            'data' => $products->items(),
             'current_page' => $products->currentPage(),
             'per_page' => $products->perPage(),
             'total' => $products->total(),
             'last_page' => $products->lastPage(),
             'next_page' => ($products->currentPage() == $products->lastPage()) ? false : true,
+            'data' => $products->items()
         ];
     }
 
@@ -76,6 +76,11 @@ class Product extends Model
     public function updateProduct($data)
     {
         return $this->update($data);
+    }
+
+    public static function productExists($name, $category_id)
+    {
+        return self::where('name', $name)->where('category_id', $category_id)->exists();
     }
 
     // Ürünü sil

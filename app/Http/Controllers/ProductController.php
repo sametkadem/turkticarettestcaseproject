@@ -1,16 +1,22 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
+    private $Category;
+    public function __construct()
+    {
+        $this->Category = new Category();
+    }
     public function index(Request $request)
     {
         $validatedData = $request->validate([
-            'categoryId' => 'nullable|exists:categories,id',
+            'category_id' => 'nullable|exists:categories,id',
             'search' => 'nullable|string|max:255',
             'minPrice' => 'nullable|numeric|min:0',
             'maxPrice' => 'nullable|numeric|min:0',
@@ -22,7 +28,7 @@ class ProductController extends Controller
             'size' => 'nullable|integer|min:1|max:1000',
         ]);
         $products = Product::getProducts($validatedData);
-        return response()->json(['status'=> 'success', 'message' => ''], 404);
+        return response()->json($products, 200);
     }
 
     public function show($id)
@@ -32,7 +38,7 @@ class ProductController extends Controller
         {
             return response()->json(['status'=> 'error', 'message' => 'Ürün bulunamadı.'], 404);
         }
-        return response()->json($product);
+        return response()->json(['status'=> 'success', 'data' => $product], 200);
     }
 
     public function store(Request $request)
@@ -44,15 +50,30 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
-            'categoryId' => 'required|exists:categories,id',
+            'category_id' => 'required|exists:categories,id',
         ]);
-        if (!Product::categoryExists($validatedData['categoryId']))
+        $categoryExists = $this->Category->categoryExistsById($validatedData['category_id']);
+        if (!$categoryExists)
         {
             return response()->json(['status' => 'error', 'message' => 'Kategori bulunamadı!'], 404);
         }
-
+        $exists = Product::productExists($validatedData['name'], $validatedData['category_id']);
+        if($exists)
+        {
+            return response()->json(['status' => 'error', 'message' => 'Bu ürün zaten mevcut!'], 400);
+        }
+        $category = $this->Category->getCategoryById($validatedData['category_id']);
+        if(!$category->is_leaf)
+        {
+            return response()->json(['status' => 'error', 'message' => 'Ürün eklemek için yaprak kategori seçmelisiniz!'], 400);
+        }
+        $validatedData['category_id'] = $category->id;
         $product = Product::createProduct($validatedData);
-        return response()->json($product, 201);
+        if(!$product)
+        {
+            return response()->json(['status' => 'error', 'message' => 'Ürün oluşturulamadı!'], 500);
+        }
+        return response()->json(['status' => 'success', 'message' => 'Ürün başarıyla oluşturuldu!', 'data' => $product], 201);
     }
 
     public function update(Request $request, $id)

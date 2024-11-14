@@ -45,6 +45,34 @@ class Category extends Model
         return $this->find($id);
     }
 
+    public static function getCategory($filters)
+    {
+        $query = self::query();
+        if (!empty($filters['category_id'])) {
+            $query->where('id', $filters['category_id']);
+        }
+        if (!empty($filters['search'])) {
+            $query->where('name', 'like', '%' . $filters['search'] . '%');
+        }
+        if (!empty($filters['sort']) && in_array($filters['sort'], ['name', 'id', 'created_at', 'updated_at'])) {
+            $query->orderBy($filters['sort'], $filters['order'] ?? 'asc');
+        }
+        $page = $filters['page'] ?? 1;
+        $size = $filters['size'] ?? 100;
+        $category = $query->paginate($size, ['*'], 'page', $page);
+        return [
+            'status' => 'success',
+            'message' => '',
+            'current_page' => $category->currentPage(),
+            'per_page' => $category->perPage(),
+            'total' => $category->total(),
+            'last_page' => $category->lastPage(),
+            'next_page' => ($category->currentPage() == $category->lastPage()) ? false : true,
+            'data' => $category->items(),
+        ];
+
+    }
+
     // Kategori ağacını almak için recursive (özyinelemeli) bir fonksiyon
     public function getAllCategoriesByTree()
     {
@@ -68,8 +96,13 @@ class Category extends Model
         return $category;
     }
 
-    public static function categoryExists($name, $parentId)
+    public function categoryExists($name, $parentId)
     {
         return self::where('name', $name)->where('parent_id', $parentId)->exists();
+    }
+
+    public function categoryExistsById($id)
+    {
+        return self::where('id', $id)->exists();
     }
 }

@@ -25,49 +25,39 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // İstek parametrelerini doğrulama
         $validatedData = $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
-
         $credentials = $request->only('email', 'password');
-
-        // Kullanıcıyı veritabanından al
         $user = User::where('email', $credentials['email'])->first();
-
-        // Eğer kullanıcı yoksa, hata mesajı döndür
-        if(!$user) {
+        if (!$user)
+        {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Kullanıcı bulunamadı.'
             ], 401);
         }
-
-        // Kullanıcı aktif değilse, hata mesajı döndür
-        if($user->is_active == 0) {
+        if ($user->is_active == 0)
+        {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Kullanıcı aktif değil.'
             ], 401);
         }
-
-        // Kullanıcı rolünü belirle
         $roles = $user->is_admin ? ['admin'] : ['user'];
         $guard = $user->is_admin ? 'admin' : 'api';
         // JWT ile oturum açma
-        if (!$token = auth($guard)->attempt($credentials)) {
+        if (!$token = auth($guard)->attempt($credentials))
+        {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lütfen giriş bilgilerinizi kontrol edin.'
             ], 401);
         }
-
-        // Kullanıcıyı al ve rol bilgisiyle token döndür
         $user = auth($guard)->user();
         return $this->respondWithToken($token, $roles, $guard);
     }
-
 
     public function me()
     {
@@ -77,12 +67,13 @@ class AuthController extends Controller
     public function logout()
     {
         auth()->logout();
-        return response()->json(['message' => 'Çıkış işlemi başarılı']);
+        return response()->json(['status' => 'success', 'message' => 'Çıkış işlemi başarılı']);
     }
 
     public function refresh()
     {
-        return $this->respondWithToken(auth()->refresh());
+        $user = auth('api')->user();
+        return $this->respondWithToken(auth('api')->refresh(), $user->is_admin ? ['admin'] : ['user']);
     }
 
     protected function respondWithToken($token, $roles, $guard = 'api')

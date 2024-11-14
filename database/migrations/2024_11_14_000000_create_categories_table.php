@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Foreign key constraint for self-referencing parent_id
-            $table->foreign('parent_id')->references('id')->on('categories')->onDelete('cascade');
+            $table->foreign('parent_id')->references('id')->on('categories');
         });
     }
 

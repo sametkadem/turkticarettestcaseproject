@@ -6,9 +6,17 @@ use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::all();
+        $validatedData = $request->validate([
+            'category_id' => 'nullable|exists:categories,id',
+            'search' => 'nullable|string|max:255',
+            'sort' => 'nullable|string|in:created_at,updated_at,name,id',
+            'order' => 'nullable|string|in:asc,desc',
+            'page' => 'nullable|integer|min:1',
+            'size' => 'nullable|integer|min:1|max:1000',
+        ]);
+        $categories = Category::getCategory($validatedData);
         return response()->json($categories);
     }
 
@@ -40,7 +48,8 @@ class CategoryController extends Controller
             'display_name' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:categories,id',
         ]);
-        $categoryExists = Category::categoryExists($validatedData['name'], $validatedData['parent_id']);
+        $category = new Category();
+        $categoryExists = $category->categoryExists($validatedData['name'], $validatedData['parent_id']);
         if ($categoryExists)
         {
             return response()->json(['status'=> 'error', 'message' => 'Bu kategori zaten mevcut'], 400);
@@ -65,7 +74,7 @@ class CategoryController extends Controller
         }else
         {
             $validatedData['path'] = $validatedData['name'];
-            $validatedData['is_leaf'] = false;
+            $validatedData['is_leaf'] = true;
             $validatedData['is_root'] = true;
         }
         $validatedData['is_active'] = true;
@@ -96,7 +105,17 @@ class CategoryController extends Controller
         }
         if($category->is_root)
         {
-            return response()->json(['status'=> 'error', 'message' => 'Kök kategori silinemez'], 400);
+            $subCategories = Category::where('parent_id', $category->id)->get();
+            if(count($subCategories) > 0)
+            {
+                return response()->json(['status'=> 'error', 'message' => 'Bu kategori alt kategorilere sahip olduğu için silinemez'], 400);
+            }
+            $deleteCategory = $category->delete();
+            if(!$deleteCategory)
+            {
+                return response()->json(['status'=> 'error', 'message' => 'Kategori silinemedi'], 500);
+            }
+            return response()->json(['status'=> 'success', 'message' => 'Kategori başarıyla silindi']);
         }
         if($category->is_leaf){
             $parentCategory = Category::find($category->parent_id);
@@ -105,6 +124,16 @@ class CategoryController extends Controller
             if(!$updateParentCategory)
             {
                 return response()->json(['status'=> 'error', 'message' => 'Üst kategori güncellenemedi'], 500);
+            }
+            $subCategories = Category::where('parent_id', $category->id)->get();
+            if(count($subCategories) > 1)
+            {
+                return response()->json(['status'=> 'error', 'message' => 'Bu kategori alt kategorilere sahip olduğu için silinemez'], 400);
+            }
+            $deleteCategory = $category->deleteCategory();
+            if(!$deleteCategory)
+            {
+                return response()->json(['status'=> 'error', 'message' => 'Kategori silinemedi'], 500);
             }
         }
         $category->delete();
